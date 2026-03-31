@@ -37,8 +37,33 @@ export default function CalendarPage() {
     setLoading(false);
   };
 
+  const [sending, setSending] = useState(false);
+
   const updateStatus = async (id: string, status: AppointmentStatus) => {
     await supabase.from('appointments').update({ status }).eq('id', id);
+
+    // Send WhatsApp confirmation when barber approves
+    if (status === 'confirmed') {
+      setSending(true);
+      try {
+        const resp = await fetch('/api/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: id }),
+        });
+        const data = await resp.json();
+        if (data.sent) {
+          alert('התור אושר והודעת WhatsApp נשלחה ללקוח! ✅');
+        } else {
+          alert('התור אושר, אך שליחת ההודעה נכשלה.');
+        }
+      } catch {
+        alert('התור אושר, אך שליחת ההודעה נכשלה.');
+      } finally {
+        setSending(false);
+      }
+    }
+
     setSelectedAppt(null);
     loadAppointments();
   };
@@ -127,7 +152,9 @@ export default function CalendarPage() {
 
             <div className="flex gap-2 pt-2">
               {selectedAppt.status === 'pending' && (
-                <button onClick={() => updateStatus(selectedAppt.id, 'confirmed')} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl text-sm font-semibold">אשר</button>
+                <button onClick={() => updateStatus(selectedAppt.id, 'confirmed')} disabled={sending} className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold">
+                  {sending ? 'שולח הודעה...' : 'אשר + שלח WhatsApp'}
+                </button>
               )}
               {(selectedAppt.status === 'pending' || selectedAppt.status === 'confirmed') && (
                 <>

@@ -67,6 +67,7 @@ export interface Appointment {
   amount_paid?: number;
   is_paid: boolean;
   notes?: string;
+  reminder_sent: boolean;
   created_at: string;
   // Joined fields
   customer?: Customer;

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { href: '/admin/calendar', label: 'יומן', icon: '📅' },
+  { href: '/admin/charts', label: 'תרשימים', icon: '📊' },
   { href: '/admin/appointments', label: 'תורים', icon: '📋' },
   { href: '/admin/customers', label: 'לקוחות', icon: '👥' },
   { href: '/admin/receipts', label: 'קבלות', icon: '🧾' },

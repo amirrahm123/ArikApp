@@ -33,6 +33,12 @@ export default function AppointmentsPage() {
     setLoading(false);
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm('למחוק תור זה? פעולה זו אינה ניתנת לביטול.')) return;
+    await supabase.from('appointments').delete().eq('id', id);
+    loadAppointments();
+  };
+
   const handlePayment = async () => {
     if (!paymentModal || !payAmount) return;
     await supabase.from('appointments').update({
@@ -102,14 +108,23 @@ export default function AppointmentsPage() {
                     <span className="ms-2 text-green-400">✓ {PAYMENT_LABELS[a.payment_method]} ₪{a.amount_paid}</span>
                   )}
                 </div>
-                {!a.is_paid && a.status !== 'cancelled' && (
+                <div className="flex items-center gap-3">
+                  {!a.is_paid && a.status !== 'cancelled' && (
+                    <button
+                      onClick={() => { setPaymentModal(a); setPayAmount(''); }}
+                      className="text-accent hover:text-accent-hover text-sm font-semibold"
+                    >
+                      רשום תשלום
+                    </button>
+                  )}
                   <button
-                    onClick={() => { setPaymentModal(a); setPayAmount(''); }}
-                    className="text-accent hover:text-accent-hover text-sm font-semibold"
+                    onClick={() => handleDelete(a.id)}
+                    className="text-red-400/60 hover:text-red-400 text-sm transition-colors"
+                    title="מחק תור"
                   >
-                    רשום תשלום
+                    🗑
                   </button>
-                )}
+                </div>
               </div>
             </div>
           ))}

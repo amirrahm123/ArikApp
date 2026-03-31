@@ -7,6 +7,7 @@ const navItems = [
   { href: '/admin/calendar', label: 'יומן', icon: '📅' },
   { href: '/admin/appointments', label: 'תורים', icon: '📋' },
   { href: '/admin/customers', label: 'לקוחות', icon: '👥' },
+  { href: '/admin/receipts', label: 'קבלות', icon: '🧾' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

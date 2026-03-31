@@ -23,6 +23,7 @@ export default function BookPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bit' | 'paybox'>('cash');
 
   // Step 3
   const [submitting, setSubmitting] = useState(false);
@@ -108,6 +109,8 @@ export default function BookPage() {
           date: selectedDate,
           time_slot: selectedTime,
           status: 'pending',
+          payment_method: paymentMethod,
+          amount_paid: selectedService.price,
           is_paid: false,
           notes: notes || undefined,
         })
@@ -286,6 +289,25 @@ export default function BookPage() {
               />
             </div>
             <div>
+              <label className="block text-sm text-muted mb-1">אופן תשלום *</label>
+              <div className="grid grid-cols-3 gap-2">
+                {([['cash', 'מזומן'], ['bit', 'ביט'], ['paybox', 'PayBox']] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setPaymentMethod(val)}
+                    className={`py-3 rounded-xl text-sm font-medium border transition-all ${
+                      paymentMethod === val
+                        ? 'border-accent bg-accent/10 text-white'
+                        : 'border-white/10 bg-surface text-muted hover:border-white/20'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className="block text-sm text-muted mb-1">הערות</label>
               <textarea
                 value={notes}
@@ -328,6 +350,8 @@ export default function BookPage() {
             <p><span className="text-muted">שעה:</span> {selectedTime}</p>
             <p><span className="text-muted">שם:</span> {fullName}</p>
             <p><span className="text-muted">טלפון:</span> <span dir="ltr">{phone}</span></p>
+            <p><span className="text-muted">תשלום:</span> {paymentMethod === 'cash' ? 'מזומן' : paymentMethod === 'bit' ? 'ביט' : 'PayBox'}</p>
+            <p><span className="text-muted">מחיר:</span> <span className="text-accent font-bold">₪{selectedService?.price}</span></p>
           </div>
           <p className="text-muted text-sm">נשלח לך אישור בקרוב</p>
           <Link

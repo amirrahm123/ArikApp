@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getWeekDates, toDateStr } from '@/lib/utils';
+import { createReceipt } from '@/lib/receipts';
 import { DAYS_HE, STATUS_COLORS, STATUS_LABELS, type Appointment, type AppointmentStatus } from '@/lib/types';
 
 const HOURS = Array.from({ length: 13 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`);
@@ -40,7 +41,15 @@ export default function CalendarPage() {
   const [sending, setSending] = useState(false);
 
   const updateStatus = async (id: string, status: AppointmentStatus) => {
-    await supabase.from('appointments').update({ status }).eq('id', id);
+    await supabase.from('appointments').update({ status, is_paid: status === 'completed' }).eq('id', id);
+
+    // Auto-create receipt when completed
+    if (status === 'completed' && selectedAppt?.customer_id) {
+      const receiptId = await createReceipt(id, selectedAppt.customer_id);
+      if (receiptId) {
+        alert('התור הושלם וקבלה נוצרה! ✅');
+      }
+    }
 
     // Send WhatsApp confirmation when barber approves
     if (status === 'confirmed') {

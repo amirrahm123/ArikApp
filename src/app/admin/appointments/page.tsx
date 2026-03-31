@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { STATUS_COLORS, STATUS_LABELS, PAYMENT_LABELS, type Appointment, type AppointmentStatus, type PaymentMethod } from '@/lib/types';
+import { createReceipt } from '@/lib/receipts';
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -40,6 +41,9 @@ export default function AppointmentsPage() {
       is_paid: true,
       status: 'completed',
     }).eq('id', paymentModal.id);
+
+    // Auto-create receipt
+    await createReceipt(paymentModal.id, paymentModal.customer_id);
 
     setPaymentModal(null);
     setPayAmount('');

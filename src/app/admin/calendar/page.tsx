@@ -55,10 +55,10 @@ export default function CalendarPage() {
         if (data.sent) {
           alert('התור אושר והודעת WhatsApp נשלחה ללקוח! ✅');
         } else {
-          alert('התור אושר, אך שליחת ההודעה נכשלה.');
+          alert(`התור אושר, אך שליחת ההודעה נכשלה:\n${data.error || data.reason || 'שגיאה לא ידועה'}`);
         }
-      } catch {
-        alert('התור אושר, אך שליחת ההודעה נכשלה.');
+      } catch (err) {
+        alert(`התור אושר, אך שליחת ההודעה נכשלה:\n${err}`);
       } finally {
         setSending(false);
       }

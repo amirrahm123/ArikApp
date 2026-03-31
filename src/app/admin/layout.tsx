@@ -21,6 +21,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <h1 className="font-bold text-accent">ניהול | אריק ספרות</h1>
       </header>
 
+      {/* Desktop nav */}
+      <nav className="hidden md:flex bg-surface/50 border-b border-white/5 px-4 justify-center gap-1 sticky top-[49px] z-30">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              pathname.startsWith(item.href)
+                ? 'border-accent text-accent'
+                : 'border-transparent text-muted hover:text-white'
+            }`}
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
       {/* Content */}
       <main className="flex-1 px-4 py-6 max-w-5xl mx-auto w-full">
         {children}

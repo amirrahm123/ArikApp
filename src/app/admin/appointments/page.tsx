@@ -119,10 +119,10 @@ export default function AppointmentsPage() {
                   )}
                   <button
                     onClick={() => handleDelete(a.id)}
-                    className="text-red-400/60 hover:text-red-400 text-sm transition-colors"
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     title="מחק תור"
                   >
-                    🗑
+                    מחק
                   </button>
                 </div>
               </div>

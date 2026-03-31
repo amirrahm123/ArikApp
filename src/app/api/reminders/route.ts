@@ -13,22 +13,14 @@ export async function GET(request: Request) {
   }
 
   try {
+    // Daily cron — send reminders for all of today's appointments that haven't been reminded yet
     const now = new Date();
-    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-    const targetDate = twoHoursFromNow.toISOString().split('T')[0]; // YYYY-MM-DD
-    const targetHour = twoHoursFromNow.getHours();
-    const targetMinute = twoHoursFromNow.getMinutes();
-
-    // Find appointments within 15 minutes of the 2-hour mark (cron runs every 15 min)
-    const targetTimeMin = `${String(targetHour).padStart(2, '0')}:${String(Math.floor(targetMinute / 30) * 30).padStart(2, '0')}`;
-    const targetTimeMax = `${String(targetHour).padStart(2, '0')}:${String(Math.min(Math.floor(targetMinute / 30) * 30 + 29, 59)).padStart(2, '0')}`;
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
 
     const { data: appointments, error } = await supabase
       .from('appointments')
       .select('*, customer:customers(*)')
-      .eq('date', targetDate)
-      .gte('time_slot', targetTimeMin)
-      .lte('time_slot', targetTimeMax)
+      .eq('date', today)
       .in('status', ['pending', 'confirmed'])
       .eq('reminder_sent', false);
 

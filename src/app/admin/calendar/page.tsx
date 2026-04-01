@@ -22,21 +22,6 @@ function getServicePrice(name: string): number {
   return SERVICES.find((s) => s.name === name)?.price || 0;
 }
 
-function formatPhone(phone: string): string {
-  if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('972')) return digits;
-  if (digits.startsWith('0')) return '972' + digits.slice(1);
-  return '972' + digits;
-}
-
-function buildWhatsAppMessage(a: Appointment): string {
-  const dayName = new Date(a.date).toLocaleDateString('he-IL', { weekday: 'long' });
-  const dateStr = new Date(a.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' });
-  const price = a.amount_paid || getServicePrice(a.service_type);
-  return `שלום ${a.customer?.full_name || ''} 👋\nתורך אושר!\n📅 ${dayName}, ${dateStr}\n⏰ שעה ${a.time_slot}\n✂️ שירות: ${a.service_type}\n💰 מחיר: ${price}₪\nנתראה! 💈`;
-}
-
 const statusStyle = (s: AppointmentStatus) => {
   switch (s) {
     case 'pending': return 'bg-[#FEF3C7] text-[#92400E]';
@@ -67,7 +52,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState<string | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
-  const [whatsappModal, setWhatsappModal] = useState<Appointment | null>(null);
+  const [confirmingAppt, setConfirmingAppt] = useState<Appointment | null>(null);
   const [receiptModal, setReceiptModal] = useState<{ appt: Appointment; receiptNumber: string } | null>(null);
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
   const [gridHours, setGridHours] = useState<string[]>(DEFAULT_HOURS);
@@ -128,17 +113,23 @@ export default function CalendarPage() {
     setLoading(false);
   };
 
-  const handleConfirm = async (a: Appointment) => {
+  const handleConfirm = (a: Appointment) => {
+    setConfirmingAppt(a);
+  };
+
+  const doConfirm = async () => {
+    if (!confirmingAppt) return;
+    const a = confirmingAppt;
+    setConfirmingAppt(null);
     setSending(a.id);
     await supabase.from('appointments').update({ status: 'confirmed' as AppointmentStatus }).eq('id', a.id);
     setAppointments((prev) => prev.map((ap) => ap.id === a.id ? { ...ap, status: 'confirmed' as AppointmentStatus } : ap));
     try {
       const resp = await fetch('/api/send-confirmation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: a.id }) });
       const data = await resp.json();
-      toast[data.sent ? 'success' : 'error'](data.sent ? '✓ אישור נשלח ללקוח' : 'התור אושר, שליחת ההודעה נכשלה');
-    } catch { toast.error('התור אושר, שליחת ההודעה נכשלה'); }
+      toast[data.sent ? 'success' : 'warning'](data.sent ? '✓ התור אושר והודעה נשלחה לוואטסאפ' : '✓ התור אושר — שליחת וואטסאפ נכשלה');
+    } catch { toast.warning('✓ התור אושר — שליחת וואטסאפ נכשלה'); }
     setSending(null);
-    setWhatsappModal({ ...a, status: 'confirmed' as AppointmentStatus });
   };
 
   const handleComplete = async (a: Appointment) => {
@@ -398,27 +389,35 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* WhatsApp modal */}
-      <Dialog open={!!whatsappModal} onOpenChange={() => setWhatsappModal(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>📱 הודעת אישור</DialogTitle></DialogHeader>
-          <div className="bg-surface-2 rounded-xl p-4 text-sm leading-relaxed whitespace-pre-line">
-            {whatsappModal && buildWhatsAppMessage(whatsappModal)}
+      {/* Confirm appointment dialog */}
+      <Dialog open={!!confirmingAppt} onOpenChange={() => setConfirmingAppt(null)}>
+        <DialogContent showCloseButton={false} className="max-w-xs sm:max-w-sm bg-white shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[#1A1A1A]">אישור תור</DialogTitle>
+          </DialogHeader>
+          {confirmingAppt && (
+            <div className="text-sm space-y-2 text-right">
+              <p className="text-[#1A1A1A] font-semibold text-base">לאשר את התור של {confirmingAppt.customer?.full_name || '—'}?</p>
+              <p className="text-[#6B7280]">תישלח הודעת וואטסאפ אוטומטית</p>
+              <p className="text-[#6B7280]">למספר <span dir="ltr" className="inline-block text-[#1A1A1A] font-medium">{confirmingAppt.customer?.phone || '—'}</span></p>
+            </div>
+          )}
+          <div className="flex gap-2 mt-3">
+            <button onClick={() => setConfirmingAppt(null)}
+              className="flex-1 border border-[#D1D5DB] text-[#1A1A1A] py-2.5 rounded-lg text-sm font-medium hover:bg-[#F3F4F6] transition-colors">
+              ביטול
+            </button>
+            <button onClick={doConfirm}
+              className="flex-[2] bg-[#C0392B] hover:bg-[#A93226] text-white py-2.5 rounded-lg text-sm font-bold transition-colors">
+              אשר ושלח ✓
+            </button>
           </div>
-          <DialogFooter className="flex gap-2">
-            {whatsappModal && (
-              <a href={`https://wa.me/${formatPhone(whatsappModal.customer?.phone || '')}?text=${encodeURIComponent(buildWhatsAppMessage(whatsappModal))}`} target="_blank" rel="noopener noreferrer" className="flex-1">
-                <button className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg text-sm font-bold transition-colors">שלח בוואטסאפ</button>
-              </a>
-            )}
-            <button onClick={() => setWhatsappModal(null)} className="flex-1 bg-surface-2 text-black py-3 rounded-lg text-sm font-bold hover:bg-gray-light transition-colors">סגור</button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Receipt modal */}
       <Dialog open={!!receiptModal} onOpenChange={() => setReceiptModal(null)}>
-        <DialogContent className="p-0 overflow-hidden">
+        <DialogContent className="p-0 overflow-hidden bg-white shadow-2xl sm:max-w-md">
           {receiptModal && (
             <div className="receipt-printable">
               {/* Top stripe */}
@@ -462,7 +461,7 @@ export default function CalendarPage() {
               <div className="h-1.5" style={{ background: 'repeating-linear-gradient(90deg, #C0392B 0px, #C0392B 20px, #F5F0E8 20px, #F5F0E8 40px, #1B3A6B 40px, #1B3A6B 60px)' }} />
             </div>
           )}
-          <div className="flex gap-2 p-4 print:hidden">
+          <div className="flex gap-2 p-4 print:hidden bg-white">
             <button
               onClick={async () => {
                 if (!receiptModal) return;

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, ClipboardList, Users, Receipt, Settings, LogOut, Download } from 'lucide-react';
+import { BarChart3, Calendar, ClipboardList, Users, Receipt, Settings, LogOut, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState, useCallback } from 'react';
 
 const navItems = [
+  { href: '/admin/dashboard', label: 'דשבורד', icon: BarChart3 },
   { href: '/admin/calendar', label: 'יומן', icon: Calendar },
   { href: '/admin/appointments', label: 'תורים', icon: ClipboardList },
   { href: '/admin/customers', label: 'לקוחות', icon: Users },

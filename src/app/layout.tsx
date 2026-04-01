@@ -3,16 +3,38 @@ import './globals.css';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://arikapp-nu.vercel.app'),
   title: 'אריק | ספרות',
   description: 'קביעת תור אצל אריק הספר — מערכת הזמנות חכמה',
   manifest: '/manifest.json',
+  openGraph: {
+    title: 'אריק ספרות',
+    description: 'קביעת תור אצל אריק הספר — מערכת הזמנות חכמה',
+    siteName: 'אריק ספרות',
+    locale: 'he_IL',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'אריק ספרות - קביעת תור',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'אריק ספרות',
+    description: 'קביעת תור אצל אריק הספר — מערכת הזמנות חכמה',
+    images: ['/og-image.png'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'אריק ספרות',
   },
   icons: {
-    apple: '/icon-192.png',
+    apple: '/apple-touch-icon.png',
   },
   other: {
     'mobile-web-app-capable': 'yes',

@@ -9,7 +9,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col" style={{ background: '#111111', color: '#F5F0E8' }}>
       {/* Barber pole stripe */}
       <div className="h-2 w-full" style={{
-        background: 'repeating-linear-gradient(90deg, #C0392B 0px, #C0392B 20px, #F5F0E8 20px, #F5F0E8 40px, #1A1A1A 40px, #1A1A1A 60px)',
+        background: 'repeating-linear-gradient(90deg, #C0392B 0px, #C0392B 20px, #F5F0E8 20px, #F5F0E8 40px, #1B3A6B 40px, #1B3A6B 60px)',
         animation: 'barberpole-h 2s linear infinite',
       }} />
       <style>{`@keyframes barberpole-h { from { background-position: 0 0; } to { background-position: 60px 0; } }`}</style>

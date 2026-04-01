@@ -41,9 +41,14 @@ export async function GET(request: Request) {
     }
 
     // Send WhatsApp reminders via Twilio
-    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-    const twilioFrom = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_WHATSAPP_FROM;
+    const twilioConfigured = !!(accountSid && authToken && from);
+
+    if (!twilioConfigured) {
+      console.warn('⚠️ Twilio not configured — WhatsApp reminders will be skipped');
+    }
 
     const results: { phone: string; status: string }[] = [];
 
@@ -58,17 +63,17 @@ export async function GET(request: Request) {
 
       const message = `שלום ${customer.full_name}! 🔔\n\nתזכורת: יש לך תור אצל אריק ספרות\n📅 ${appt.date}\n⏰ ${appt.time_slot}\n✂️ ${appt.service_type}\n\nנתראה! 💈`;
 
-      if (twilioSid && twilioToken) {
+      if (twilioConfigured) {
         try {
-          const authBase64 = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
-          const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+          const authBase64 = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+          const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
             method: 'POST',
             headers: {
               'Authorization': `Basic ${authBase64}`,
               'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
-              From: twilioFrom,
+              From: from!,
               To: `whatsapp:${phone}`,
               Body: message,
             }),
@@ -86,8 +91,8 @@ export async function GET(request: Request) {
           results.push({ phone, status: 'send_error' });
         }
       } else {
-        console.log(`[DEV] Would send reminder to ${phone}: ${message}`);
-        results.push({ phone, status: 'dev_skipped' });
+        console.warn(`⚠️ Twilio not configured — skipping reminder to ${phone}`);
+        results.push({ phone, status: 'not_configured' });
       }
 
       // Send email reminder alongside WhatsApp

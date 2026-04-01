@@ -62,6 +62,10 @@ export default function BookPage() {
     const normalizedPhone = normalizePhone(phone);
     setSubmitting(true);
     try {
+      // Rate limit check
+      const rlResp = await fetch('/api/book', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: normalizedPhone }) });
+      if (rlResp.status === 429) { alert('יותר מדי ניסיונות, נסה שוב בעוד מספר דקות'); setSubmitting(false); return; }
+
       const { data: slotCheck } = await supabase.from('appointments').select('id').eq('date', selectedDate).eq('time_slot', selectedTime).neq('status', 'cancelled').maybeSingle();
       if (slotCheck) { alert('שעה זו תפוסה, בחר שעה אחרת'); setSubmitting(false); return; }
       let customerId: string;
@@ -92,7 +96,7 @@ export default function BookPage() {
     <div className="min-h-screen px-5 py-6 max-w-[520px] mx-auto" style={{ background: dark.bg, color: dark.text }}>
       {/* Barber pole */}
       <div className="h-1.5 w-full rounded-full mb-6 overflow-hidden" style={{ background: dark.card }}>
-        <div className="h-1.5 w-full" style={{ background: 'repeating-linear-gradient(90deg, #C0392B 0px, #C0392B 20px, #F5F0E8 20px, #F5F0E8 40px, #1A1A1A 40px, #1A1A1A 60px)', animation: 'barberpole-h 2s linear infinite' }} />
+        <div className="h-1.5 w-full" style={{ background: 'repeating-linear-gradient(90deg, #C0392B 0px, #C0392B 20px, #F5F0E8 20px, #F5F0E8 40px, #1B3A6B 40px, #1B3A6B 60px)', animation: 'barberpole-h 2s linear infinite' }} />
       </div>
       <style>{`@keyframes barberpole-h { from { background-position: 0 0; } to { background-position: 60px 0; } }`}</style>
 

@@ -74,6 +74,13 @@ export default function EditAppointmentModal({ appointment, onClose, onSaved, on
 
   const handleSave = async () => {
     setSaving(true);
+    // If cancelling, use the cancel API to send notifications
+    if (status === 'cancelled' && appointment.status !== 'cancelled') {
+      await fetch('/api/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: appointment.id }) });
+      setSaving(false);
+      onSaved();
+      return;
+    }
     const updateData: Record<string, unknown> = { date, time_slot: timeSlot, service_type: serviceType, notes: notes || null, status };
     if (serviceType !== appointment.service_type) updateData.amount_paid = selectedService.price;
     await supabase.from('appointments').update(updateData).eq('id', appointment.id);

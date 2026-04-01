@@ -34,24 +34,24 @@ export async function POST(request: Request) {
 
     const message = `שלום ${customer.full_name}! ✅\n\nהתור שלך אושר אצל אריק ספרות!\n📅 ${appt.date}\n⏰ ${appt.time_slot}\n✂️ ${appt.service_type}\n\nנתראה! 💈`;
 
-    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-    const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-    const twilioFrom = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155238886';
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_WHATSAPP_FROM;
 
-    if (!twilioSid || !twilioToken) {
-      console.log(`[DEV] Would send to ${phone}: ${message}`);
-      return NextResponse.json({ sent: false, reason: 'Twilio not configured' });
+    if (!accountSid || !authToken || !from) {
+      console.warn('⚠️ Twilio not configured — skipping WhatsApp');
+      return NextResponse.json({ sent: false, reason: 'not_configured' });
     }
 
-    const authBase64 = Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64');
-    const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+    const authBase64 = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+    const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${authBase64}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        From: twilioFrom,
+        From: from,
         To: `whatsapp:${phone}`,
         Body: message,
       }),

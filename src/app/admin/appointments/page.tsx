@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { STATUS_COLORS, STATUS_LABELS, PAYMENT_LABELS, type Appointment, type AppointmentStatus, type PaymentMethod } from '@/lib/types';
 import { createReceipt } from '@/lib/receipts';
+import EditAppointmentModal from '@/components/EditAppointmentModal';
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -13,8 +14,25 @@ export default function AppointmentsPage() {
   const [paymentModal, setPaymentModal] = useState<Appointment | null>(null);
   const [payMethod, setPayMethod] = useState<PaymentMethod>('cash');
   const [payAmount, setPayAmount] = useState('');
+  const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
+
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
 
   useEffect(() => { loadAppointments(); }, [filterStatus, filterDate]);
+
+  // Realtime subscription for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('appointments-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        loadAppointments();
+      })
+      .subscribe((status) => {
+        setRealtimeConnected(status === 'SUBSCRIBED');
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, [filterStatus, filterDate]);
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -58,7 +76,7 @@ export default function AppointmentsPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-6">📋 רשימת תורים</h2>
+      <h2 className="text-xl font-bold mb-6">📋 רשימת תורים {realtimeConnected && <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse ms-1" title="מחובר בזמן אמת" />}</h2>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
@@ -109,6 +127,12 @@ export default function AppointmentsPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setEditingAppt(a)}
+                    className="text-muted hover:text-white text-sm font-semibold"
+                  >
+                    עריכה
+                  </button>
                   {!a.is_paid && a.status !== 'cancelled' && (
                     <button
                       onClick={() => { setPaymentModal(a); setPayAmount(''); }}
@@ -129,6 +153,16 @@ export default function AppointmentsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Edit modal */}
+      {editingAppt && (
+        <EditAppointmentModal
+          appointment={editingAppt}
+          onClose={() => setEditingAppt(null)}
+          onSaved={() => { setEditingAppt(null); loadAppointments(); }}
+          onDeleted={() => { setEditingAppt(null); loadAppointments(); }}
+        />
       )}
 
       {/* Payment modal */}

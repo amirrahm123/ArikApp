@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { sendReminder } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
 export async function GET(request: Request) {
-  // Verify cron secret to prevent unauthorized calls
-  const authHeader = request.headers.get('authorization');
+  // Verify cron secret — reject if not configured or mismatched
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    console.error('CRON_SECRET not configured — rejecting request');
+    return NextResponse.json({ error: 'Cron not configured' }, { status: 503 });
+  }
+
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    console.warn('Unauthorized cron attempt');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -81,6 +88,19 @@ export async function GET(request: Request) {
       } else {
         console.log(`[DEV] Would send reminder to ${phone}: ${message}`);
         results.push({ phone, status: 'dev_skipped' });
+      }
+
+      // Send email reminder alongside WhatsApp
+      const customerData = customer as { full_name: string; phone: string; email?: string };
+      if (customerData.email) {
+        await sendReminder({
+          customerName: customerData.full_name,
+          customerEmail: customerData.email,
+          date: appt.date as string,
+          timeSlot: appt.time_slot as string,
+          serviceType: appt.service_type as string,
+          price: (appt.amount_paid as number) || 0,
+        });
       }
 
       // Mark as sent regardless (to avoid re-sending)

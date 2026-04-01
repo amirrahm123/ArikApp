@@ -1,7 +1,16 @@
 import { supabase } from './supabase';
 
-/** Create a receipt for a completed appointment */
+/** Create a receipt for a completed appointment — prevents duplicates */
 export async function createReceipt(appointmentId: string, customerId: string): Promise<string | null> {
+  // Check if receipt already exists for this appointment
+  const { data: existing } = await supabase
+    .from('receipts')
+    .select('id, receipt_number')
+    .eq('appointment_id', appointmentId)
+    .maybeSingle();
+
+  if (existing) return existing.id; // Already has a receipt
+
   // Count existing receipts to generate next number
   const { count } = await supabase
     .from('receipts')

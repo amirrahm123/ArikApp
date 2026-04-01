@@ -25,6 +25,10 @@ export default function BookPage() {
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bit' | 'paybox'>('cash');
 
+  // Phone conflict
+  const [existingCustomer, setExistingCustomer] = useState<{ id: string; full_name: string } | null>(null);
+  const [showPhoneConflict, setShowPhoneConflict] = useState(false);
+
   // Step 3
   const [submitting, setSubmitting] = useState(false);
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
@@ -35,10 +39,42 @@ export default function BookPage() {
   useEffect(() => {
     if (!selectedDate || !selectedService) return;
 
-    const dateObj = new Date(selectedDate + 'T00:00:00');
-    const slots = getTimeSlots(dateObj, selectedService);
-    setAvailableSlots(slots);
     setSelectedTime('');
+
+    // Fetch working hours for this day from DB, fallback to hardcoded
+    const dateObj = new Date(selectedDate + 'T00:00:00');
+    const dayOfWeek = dateObj.getDay();
+
+    supabase
+      .from('working_hours')
+      .select('open_time, close_time, is_open')
+      .eq('day_of_week', dayOfWeek)
+      .maybeSingle()
+      .then(({ data: wh }) => {
+        if (wh && !wh.is_open) {
+          setAvailableSlots([]);
+          return;
+        }
+        if (wh) {
+          // Generate slots from DB hours
+          const [openH, openM] = (wh.open_time as string).split(':').map(Number);
+          const [closeH, closeM] = (wh.close_time as string).split(':').map(Number);
+          const slots: string[] = [];
+          let cur = openH * 60 + openM;
+          const end = closeH * 60 + closeM;
+          while (cur + selectedService.duration <= end) {
+            const h = Math.floor(cur / 60);
+            const m = cur % 60;
+            slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            cur += 30;
+          }
+          setAvailableSlots(slots);
+        } else {
+          // Fallback to hardcoded
+          const slots = getTimeSlots(dateObj, selectedService);
+          setAvailableSlots(slots);
+        }
+      });
 
     // Fetch booked slots from Supabase
     supabase
@@ -73,32 +109,68 @@ export default function BookPage() {
     return () => { supabase.removeChannel(channel); };
   }, [selectedDate, selectedService]);
 
+  // Normalize phone to 05X-XXXXXXX format
+  const normalizePhone = (p: string): string => {
+    const digits = p.replace(/\D/g, '');
+    if (digits.startsWith('972')) return '0' + digits.slice(3);
+    if (digits.startsWith('0')) return digits;
+    return '0' + digits;
+  };
+
   const handleSubmit = async () => {
     if (!selectedService || !selectedDate || !selectedTime || !fullName || !phone) return;
+    const normalizedPhone = normalizePhone(phone);
     setSubmitting(true);
 
     try {
+      // Check if slot is still available (prevent double-booking)
+      const { data: slotCheck } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('date', selectedDate)
+        .eq('time_slot', selectedTime)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+
+      if (slotCheck) {
+        alert('שעה זו תפוסה, בחר שעה אחרת');
+        setSubmitting(false);
+        return;
+      }
+
       // Find or create customer
       let customerId: string;
       const { data: existing } = await supabase
         .from('customers')
-        .select('id')
-        .eq('phone', phone)
-        .single();
+        .select('id, full_name')
+        .eq('phone', normalizedPhone)
+        .maybeSingle();
 
       if (existing) {
+        // Phone exists with different name — check if user confirms
+        if (existing.full_name !== fullName && !showPhoneConflict) {
+          setExistingCustomer(existing);
+          setShowPhoneConflict(true);
+          setSubmitting(false);
+          return;
+        }
         customerId = existing.id;
-        // Update name/email if changed
-        await supabase.from('customers').update({ full_name: fullName, email: email || undefined }).eq('id', customerId);
+        // Only update email, not name (prevent identity collision)
+        if (email) {
+          await supabase.from('customers').update({ email }).eq('id', customerId);
+        }
       } else {
         const { data: newCust, error } = await supabase
           .from('customers')
-          .insert({ full_name: fullName, phone, email: email || undefined })
+          .insert({ full_name: fullName, phone: normalizedPhone, email: email || undefined })
           .select('id')
           .single();
-        if (error || !newCust) throw error;
+        if (error || !newCust) throw new Error('Failed to create customer');
         customerId = newCust.id;
       }
+
+      setShowPhoneConflict(false);
+      setExistingCustomer(null);
 
       // Create appointment
       const { data: appt, error: apptErr } = await supabase
@@ -117,8 +189,43 @@ export default function BookPage() {
         .select('id')
         .single();
 
-      if (apptErr || !appt) throw apptErr;
+      if (apptErr || !appt) throw new Error('Failed to create appointment');
       setAppointmentId(appt.id);
+
+      // Notify admin via WhatsApp (fire and forget)
+      fetch('/api/notify-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: fullName,
+          phone,
+          service: selectedService.name,
+          date: selectedDate,
+          time: selectedTime,
+          price: selectedService.price,
+          paymentMethod,
+        }),
+      }).catch(() => {});
+
+      // Send booking confirmation email (fire and forget)
+      if (email) {
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'booking',
+            data: {
+              customerName: fullName,
+              customerEmail: email,
+              date: selectedDate,
+              timeSlot: selectedTime,
+              serviceType: selectedService.name,
+              price: selectedService.price,
+            },
+          }),
+        }).catch(() => {});
+      }
+
       setStep(3);
     } catch (err) {
       console.error('Booking error:', err);
@@ -211,7 +318,7 @@ export default function BookPage() {
           {selectedDate && availableSlots.length > 0 && (
             <div>
               <label className="block text-sm text-muted mb-2">בחר שעה</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {availableSlots.map((slot) => {
                   const isBooked = bookedSlots.includes(slot);
                   return (
@@ -318,6 +425,37 @@ export default function BookPage() {
               />
             </div>
           </div>
+
+          {/* Phone conflict warning */}
+          {showPhoneConflict && existingCustomer && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 space-y-3">
+              <p className="text-sm text-yellow-400">
+                מספר זה רשום על שם <strong>{existingCustomer.full_name}</strong>.
+              </p>
+              <p className="text-sm text-muted">האם אתה {existingCustomer.full_name}?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setFullName(existingCustomer.full_name);
+                    setShowPhoneConflict(false);
+                    handleSubmit();
+                  }}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl text-sm font-semibold"
+                >
+                  כן, זה אני
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPhoneConflict(false);
+                    setExistingCustomer(null);
+                  }}
+                  className="flex-1 bg-surface border border-white/10 text-white py-2 rounded-xl text-sm font-semibold hover:bg-surface-hover"
+                >
+                  לא, שנה מספר
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button

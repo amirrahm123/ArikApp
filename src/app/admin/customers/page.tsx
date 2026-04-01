@@ -9,6 +9,7 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<(Customer & { visit_count: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => { loadCustomers(); }, []);
 
@@ -29,6 +30,16 @@ export default function CustomersPage() {
 
     setCustomers(enriched);
     setLoading(false);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`למחוק את הלקוח "${name}"?`)) return;
+    setDeleting(id);
+    await supabase.from('customers').delete().eq('id', id);
+    setCustomers((prev) => prev.filter((c) => c.id !== id));
+    setDeleting(null);
   };
 
   const filtered = search
@@ -66,9 +77,18 @@ export default function CustomersPage() {
                   <p className="font-semibold">{c.full_name}</p>
                   <p className="text-sm text-muted" dir="ltr">{c.phone}</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-sm text-muted">{c.visit_count} ביקורים</p>
-                  <p className="text-xs text-muted/50">{new Date(c.created_at).toLocaleDateString('he-IL')}</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-left">
+                    <p className="text-sm text-muted">{c.visit_count} ביקורים</p>
+                    <p className="text-xs text-muted/50">{new Date(c.created_at).toLocaleDateString('he-IL')}</p>
+                  </div>
+                  <button
+                    onClick={(e) => handleDelete(e, c.id, c.full_name)}
+                    disabled={deleting === c.id}
+                    className="bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 disabled:opacity-50 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    {deleting === c.id ? '...' : 'מחק'}
+                  </button>
                 </div>
               </div>
             </Link>

@@ -75,16 +75,11 @@ export default function ReceiptsPage() {
       )
     : receipts;
 
-  const totalRevenue = receipts.reduce((sum, r) => sum + (r.appointment?.amount_paid || 0), 0);
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="mb-6">
         <h2 className="text-xl font-bold">🧾 ארכיון קבלות</h2>
-        <div className="text-left">
-          <p className="text-xs text-muted">סה״כ הכנסות</p>
-          <p className="text-lg font-bold text-accent" dir="ltr">₪{totalRevenue}</p>
-        </div>
       </div>
 
       <input

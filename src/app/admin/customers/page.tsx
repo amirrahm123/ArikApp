@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { Trash2, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Customer } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<(Customer & { visit_count: number })[]>([]);
@@ -15,19 +19,11 @@ export default function CustomersPage() {
 
   const loadCustomers = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('customers')
-      .select('*, appointments(id)')
-      .order('created_at', { ascending: false });
-
+    const { data } = await supabase.from('customers').select('*, appointments(id)').order('created_at', { ascending: false });
     const enriched = (data || []).map((c: unknown) => {
       const cust = c as Customer & { appointments?: { id: string }[] };
-      return {
-        ...cust,
-        visit_count: Array.isArray(cust.appointments) ? cust.appointments.length : 0,
-      };
+      return { ...cust, visit_count: Array.isArray(cust.appointments) ? cust.appointments.length : 0 };
     });
-
     setCustomers(enriched);
     setLoading(false);
   };
@@ -40,61 +36,59 @@ export default function CustomersPage() {
     await supabase.from('customers').delete().eq('id', id);
     setCustomers((prev) => prev.filter((c) => c.id !== id));
     setDeleting(null);
+    toast.success('✓ הלקוח נמחק');
   };
 
-  const filtered = search
-    ? customers.filter((c) =>
-        c.full_name.includes(search) || c.phone.includes(search)
-      )
-    : customers;
+  const filtered = search ? customers.filter((c) => c.full_name.includes(search) || c.phone.includes(search)) : customers;
+  const getInitials = (name: string) => name.split(' ').map((w) => w[0]).join('').slice(0, 2);
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-6">👥 לקוחות</h2>
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+      <h2 className="font-display text-3xl md:text-4xl text-black tracking-wide mb-4">לקוחות</h2>
 
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="חיפוש לפי שם או טלפון..."
-        className="w-full md:max-w-xs bg-surface border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-muted/50 focus:border-accent focus:outline-none mb-6"
-      />
+      <div className="relative mb-4 sticky top-0 z-10">
+        <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש לפי שם או טלפון..."
+          className="w-full bg-surface rounded-xl pe-12 ps-4 py-3.5 text-black text-base placeholder:text-muted/50 focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" />
+      </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>
+        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[72px] w-full rounded-xl" />)}</div>
       ) : filtered.length === 0 ? (
-        <p className="text-center text-muted py-16">אין לקוחות להצגה</p>
+        <div className="text-center py-16">
+          <div className="font-display text-5xl text-muted/30 mb-2">✂️</div>
+          <p className="font-display text-2xl text-muted/40">אין לקוחות</p>
+        </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((c) => (
-            <Link
-              key={c.id}
-              href={`/admin/customer/${c.id}`}
-              className="block bg-surface rounded-xl p-4 border border-white/5 hover:border-white/10 transition-all"
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">{c.full_name}</p>
-                  <p className="text-sm text-muted" dir="ltr">{c.phone}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-left">
-                    <p className="text-sm text-muted">{c.visit_count} ביקורים</p>
-                    <p className="text-xs text-muted/50">{new Date(c.created_at).toLocaleDateString('he-IL')}</p>
+          <AnimatePresence>
+            {filtered.map((c, i) => (
+              <motion.div key={c.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ delay: i * 0.03 }} layout>
+                <Link href={`/admin/customer/${c.id}`}>
+                  <div className="bg-surface rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3 min-h-[72px]">
+                    <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shrink-0">
+                      <span className="font-display text-lg text-white">{getInitials(c.full_name)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-black truncate">{c.full_name}</p>
+                      <p className="text-sm text-muted" dir="ltr">{c.phone}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-left">
+                        <span className="bg-accent-light text-accent px-2 py-0.5 rounded-full text-xs font-semibold">{c.visit_count} ביקורים</span>
+                      </div>
+                      <button onClick={(e) => handleDelete(e, c.id, c.full_name)} disabled={deleting === c.id}
+                        className="p-2 rounded-lg hover:bg-accent-light text-muted hover:text-accent transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={(e) => handleDelete(e, c.id, c.full_name)}
-                    disabled={deleting === c.id}
-                    className="bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 disabled:opacity-50 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                  >
-                    {deleting === c.id ? '...' : 'מחק'}
-                  </button>
-                </div>
-              </div>
-            </Link>
-          ))}
+                </Link>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

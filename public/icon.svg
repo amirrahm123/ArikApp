@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1A1A1A"/>
+  <rect y="0" width="512" height="12" fill="#C0392B"/>
+  <rect y="12" width="512" height="12" fill="#F5F0E8"/>
+  <rect y="24" width="512" height="12" fill="#1B3A6B"/>
+  <text x="256" y="300" text-anchor="middle" font-size="240" fill="#C0392B" font-family="Arial">✂</text>
+  <text x="256" y="430" text-anchor="middle" font-size="72" fill="#F5F0E8" font-family="Arial" font-weight="bold">אריק</text>
+</svg>

@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, ClipboardList, Users, Receipt, Settings, LogOut, Share2 } from 'lucide-react';
+import { Calendar, ClipboardList, Users, Receipt, Settings, LogOut, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
+import { useEffect, useState, useCallback } from 'react';
 
 const navItems = [
   { href: '/admin/calendar', label: 'יומן', icon: Calendar },
@@ -32,21 +32,126 @@ function BarberPoleIcon() {
   );
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+function useInstallPWA() {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIOSModal, setShowIOSModal] = useState(false);
+
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || ('standalone' in navigator && (navigator as unknown as { standalone: boolean }).standalone);
+    setIsStandalone(!!standalone);
+
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(ios);
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    const installedHandler = () => {
+      setDeferredPrompt(null);
+      setIsStandalone(true);
+    };
+    window.addEventListener('appinstalled', installedHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
+  }, []);
+
+  const canShow = !isStandalone && (!!deferredPrompt || isIOS);
+
+  const handleInstallClick = useCallback(async () => {
+    if (deferredPrompt) {
+      await deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setIsStandalone(true);
+      }
+      setDeferredPrompt(null);
+    } else if (isIOS) {
+      setShowIOSModal(true);
+    }
+  }, [deferredPrompt, isIOS]);
+
+  return { canShow, handleInstallClick, showIOSModal, setShowIOSModal };
+}
+
+function IOSInstallModal({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/60 z-[100] animate-fade-in"
+        onClick={onClose}
+      />
+      {/* Bottom sheet */}
+      <div className="fixed bottom-0 inset-x-0 z-[101] animate-slide-up" dir="rtl">
+        <div className="bg-[#1A1A1A] rounded-t-2xl px-6 pt-6 pb-8 mx-auto max-w-md border-t border-white/10"
+          style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span className="text-xl">📲</span> הוספה למסך הבית
+          </h3>
+          <ol className="space-y-3 text-white/80 text-sm list-none pr-0">
+            <li className="flex gap-2">
+              <span className="text-white font-bold shrink-0">1.</span>
+              <span>לחץ על כפתור השיתוף <span className="inline-block text-base align-middle">⎙</span> (בתחתית הדפדפן)</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-white font-bold shrink-0">2.</span>
+              <span>גלול למטה ובחר: <strong className="text-white">&quot;הוסף למסך הבית&quot;</strong></span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-white font-bold shrink-0">3.</span>
+              <span>לחץ <strong className="text-white">&quot;הוסף&quot;</strong> בפינה הימנית</span>
+            </li>
+          </ol>
+          <button
+            onClick={onClose}
+            className="mt-5 w-full py-2.5 rounded-xl bg-[#C0392B] text-white font-bold text-sm hover:bg-[#A93226] transition-colors"
+          >
+            הבנתי ✓
+          </button>
+        </div>
+      </div>
+      <style>{`
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.2s ease-out; }
+        .animate-slide-up { animation: slide-up 0.3s ease-out; }
+      `}</style>
+    </>
+  );
+}
+
+function InstallButton({ onClick, className }: { onClick: () => void; className?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 h-9 px-3 rounded-full text-sm font-bold text-white transition-colors hover:brightness-110 ${className ?? ''}`}
+      style={{ background: '#C0392B' }}
+    >
+      <Download className="w-4 h-4" />
+      <span>התקן אפליקציה</span>
+    </button>
+  );
+}
+
 export default function AdminNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isLoginPage = pathname === '/admin/login';
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/book`;
-    const text = 'קבע תור אצל אריק ספרות ✂️';
-    if (navigator.share) {
-      try { await navigator.share({ title: 'אריק ספרות', text, url }); } catch {}
-    } else {
-      await navigator.clipboard.writeText(url);
-      toast.success('✓ הקישור הועתק');
-    }
-  };
+  const { canShow, handleInstallClick, showIOSModal, setShowIOSModal } = useInstallPWA();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -71,9 +176,7 @@ export default function AdminNav({ children }: { children: React.ReactNode }) {
           <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm text-white/60 hover:text-red-400 transition-colors">
             <LogOut className="w-4 h-4" /> יציאה
           </button>
-          <button onClick={handleShare} className="flex items-center gap-1.5 text-sm text-white/60 hover:text-green-400 transition-colors">
-            <Share2 className="w-4 h-4" /> שלח קישור
-          </button>
+          {canShow && <InstallButton onClick={handleInstallClick} />}
         </div>
         <nav className="flex items-center gap-1">
           {navItems.map((item) => {
@@ -99,9 +202,7 @@ export default function AdminNav({ children }: { children: React.ReactNode }) {
           <button onClick={handleLogout} className="text-white/60 hover:text-red-400 transition-colors">
             <LogOut className="w-5 h-5" />
           </button>
-          <button onClick={handleShare} className="text-white/60 hover:text-green-400 transition-colors">
-            <Share2 className="w-5 h-5" />
-          </button>
+          {canShow && <InstallButton onClick={handleInstallClick} />}
         </div>
         <div className="flex items-center gap-2">
           <BarberPoleIcon />
@@ -127,6 +228,9 @@ export default function AdminNav({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
+
+      {/* iOS install instructions modal */}
+      {showIOSModal && <IOSInstallModal onClose={() => setShowIOSModal(false)} />}
     </div>
   );
 }

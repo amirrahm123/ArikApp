@@ -101,7 +101,7 @@ function SafariShareIcon({ size = 48 }: { size?: number }) {
 /* "Add to Home Screen" menu row illustration */
 function AddToHomeScreenRow() {
   return (
-    <svg width="220" height="48" viewBox="0 0 220 48" fill="none" dir="rtl">
+    <svg width="220" height="48" viewBox="0 0 220 48" fill="none">
       {/* Row background */}
       <rect width="220" height="48" rx="10" fill="#2C2C2E" />
       {/* Plus-in-square icon */}

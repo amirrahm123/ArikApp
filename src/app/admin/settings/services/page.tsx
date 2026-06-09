@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { blockDemoWrite, useIsDemo } from '@/lib/demo';
 import Link from 'next/link';
 
 interface ServiceRow {
@@ -13,6 +14,7 @@ interface ServiceRow {
 }
 
 export default function ServicesSettingsPage() {
+  const isDemo = useIsDemo();
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -51,6 +53,7 @@ export default function ServicesSettingsPage() {
   };
 
   const saveEdit = async () => {
+    if (blockDemoWrite()) return;
     if (!editingId || !editName) return;
     await supabase.from('services').update({
       name: editName,
@@ -63,11 +66,13 @@ export default function ServicesSettingsPage() {
   };
 
   const toggleActive = async (s: ServiceRow) => {
+    if (blockDemoWrite()) return;
     await supabase.from('services').update({ active: !s.active }).eq('id', s.id);
     setServices((prev) => prev.map((sv) => sv.id === s.id ? { ...sv, active: !sv.active } : sv));
   };
 
   const handleAdd = async () => {
+    if (blockDemoWrite()) return;
     if (!addName) return;
     await supabase.from('services').insert({
       name: addName,
@@ -83,6 +88,7 @@ export default function ServicesSettingsPage() {
   };
 
   const handleDelete = async (id: string, name: string) => {
+    if (blockDemoWrite()) return;
     if (!confirm(`למחוק את השירות "${name}"?`)) return;
     const { error } = await supabase.from('services').delete().eq('id', id);
     if (error) {
@@ -99,12 +105,14 @@ export default function ServicesSettingsPage() {
           <Link href="/admin/settings" className="text-sm text-muted hover:text-white">← הגדרות</Link>
           <h2 className="text-xl font-bold">✂️ שירותים</h2>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
-        >
-          + הוסף שירות
-        </button>
+        {!isDemo && (
+          <button
+            onClick={() => setShowAdd(true)}
+            className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+          >
+            + הוסף שירות
+          </button>
+        )}
       </div>
 
       {/* Add form */}
@@ -189,18 +197,30 @@ export default function ServicesSettingsPage() {
                     <p className="text-sm text-muted">{s.duration} דקות · ₪{s.price}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleActive(s)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                    {isDemo ? (
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
                         s.active
                           ? 'bg-green-500/20 text-green-400 border-green-500/30'
                           : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                      }`}
-                    >
-                      {s.active ? 'פעיל' : 'מושבת'}
-                    </button>
-                    <button onClick={() => startEdit(s)} className="text-muted hover:text-white text-sm">✏️</button>
-                    <button onClick={() => handleDelete(s.id, s.name)} className="text-red-400 hover:text-red-300 text-sm">🗑️</button>
+                      }`}>
+                        {s.active ? 'פעיל' : 'מושבת'}
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => toggleActive(s)}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                            s.active
+                              ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                              : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                          }`}
+                        >
+                          {s.active ? 'פעיל' : 'מושבת'}
+                        </button>
+                        <button onClick={() => startEdit(s)} className="text-muted hover:text-white text-sm">✏️</button>
+                        <button onClick={() => handleDelete(s.id, s.name)} className="text-red-400 hover:text-red-300 text-sm">🗑️</button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

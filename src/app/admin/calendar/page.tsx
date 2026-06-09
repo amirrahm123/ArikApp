@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { ChevronRight, ChevronLeft, Pencil, Scissors, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { blockDemoWrite, useIsDemo } from '@/lib/demo';
 import { getWeekDates, toDateStr, formatDateHe } from '@/lib/utils';
 import { createReceipt } from '@/lib/receipts';
 import {
@@ -43,6 +44,7 @@ const cardBorderColor = (s: AppointmentStatus) => {
 const STATUS_LABELS_HE: Record<string, string> = { pending: 'ממתין', confirmed: 'מאושר', completed: 'הושלם', cancelled: 'בוטל' };
 
 export default function CalendarPage() {
+  const isDemo = useIsDemo();
   const [weekOffset, setWeekOffset] = useState(0);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(() => {
@@ -114,10 +116,12 @@ export default function CalendarPage() {
   };
 
   const handleConfirm = (a: Appointment) => {
+    if (blockDemoWrite()) return;
     setConfirmingAppt(a);
   };
 
   const doConfirm = async () => {
+    if (blockDemoWrite()) return;
     if (!confirmingAppt) return;
     const a = confirmingAppt;
     setConfirmingAppt(null);
@@ -133,6 +137,7 @@ export default function CalendarPage() {
   };
 
   const handleComplete = async (a: Appointment) => {
+    if (blockDemoWrite()) return;
     setCompleting(a.id);
     const price = a.amount_paid || getServicePrice(a.service_type);
     await supabase.from('appointments').update({ status: 'completed' as AppointmentStatus, is_paid: true, amount_paid: price }).eq('id', a.id);
@@ -178,9 +183,11 @@ export default function CalendarPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setEditingAppt(appt)} className="text-muted hover:text-black p-1.5 rounded-lg hover:bg-surface-2 transition-colors">
-              <Pencil className="w-4 h-4" />
-            </button>
+            {!isDemo && (
+              <button onClick={() => setEditingAppt(appt)} className="text-muted hover:text-black p-1.5 rounded-lg hover:bg-surface-2 transition-colors">
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusStyle(appt.status)}`}>{STATUS_LABELS_HE[appt.status]}</span>
           </div>
         </div>
@@ -190,7 +197,7 @@ export default function CalendarPage() {
           {(appt.amount_paid || getServicePrice(appt.service_type)) > 0 && <span className="font-semibold text-black" dir="ltr">₪{appt.amount_paid || getServicePrice(appt.service_type)}</span>}
           {appt.is_paid && <span className="text-success font-medium">✓ שולם</span>}
         </div>
-        {appt.status !== 'completed' && (
+        {!isDemo && appt.status !== 'completed' && (
           <div className="flex gap-2 mt-3">
             {appt.status === 'pending' && (
               <motion.button whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }} onClick={() => handleConfirm(appt)} disabled={sending === appt.id}

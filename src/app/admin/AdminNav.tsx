@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { BarChart3, Calendar, ClipboardList, Users, Receipt, Settings, LogOut, Download } from 'lucide-react';
+import { BarChart3, Calendar, ClipboardList, Users, Receipt, Settings, LogOut, Download, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useIsDemo } from '@/lib/demo';
 import { useEffect, useState, useCallback } from 'react';
 
 const navItems = [
@@ -252,6 +253,7 @@ export default function AdminNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isLoginPage = pathname === '/admin/login';
+  const isDemo = useIsDemo();
   const { canShow, handleInstallClick, showIOSModal, setShowIOSModal } = useInstallPWA();
 
   const handleLogout = async () => {
@@ -312,6 +314,13 @@ export default function AdminNav({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="flex-1 px-4 py-4 md:py-6 max-w-5xl mx-auto w-full pb-20 md:pb-6">
+        {isDemo && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-2.5 text-sm text-[#8A6D2B]">
+            <Eye className="w-4 h-4 shrink-0" />
+            <span className="font-semibold">מצב הדגמה — צפייה בלבד.</span>
+            <span className="text-[#8A6D2B]/80">הנתונים מודגמים; פעולות שמירה, עריכה ומחיקה מושבתות.</span>
+          </div>
+        )}
         {children}
       </main>
 

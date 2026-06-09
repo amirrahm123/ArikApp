@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { DEMO_EMAIL } from '@/lib/demo';
+
+const DEMO_PASSWORD = 'demo1234';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('amirrahm135@gmail.com');
@@ -11,15 +14,25 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signIn = async (loginEmail: string, loginPassword: string) => {
     setError('');
     setLoading(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (authError) { setError('שגיאה: ' + authError.message); setLoading(false); return; }
       window.location.href = '/admin/calendar';
     } catch { setError('שגיאה לא צפויה, נסה שוב'); setLoading(false); }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await signIn(email, password);
+  };
+
+  const handleDemoLogin = async () => {
+    setEmail(DEMO_EMAIL);
+    setPassword(DEMO_PASSWORD);
+    await signIn(DEMO_EMAIL, DEMO_PASSWORD);
   };
 
   return (
@@ -53,6 +66,15 @@ export default function LoginPage() {
             {loading ? 'מתחבר...' : 'כניסה'}
           </button>
         </form>
+
+        {/* Public read-only demo access */}
+        <div className="mt-6 pt-5 border-t border-gray-light/40">
+          <button type="button" onClick={handleDemoLogin} disabled={loading}
+            className="w-full bg-surface-2 hover:bg-gray-light disabled:opacity-50 text-black py-3 rounded-xl text-sm font-bold transition-colors">
+            👁️ כניסה להדגמה (צפייה בלבד)
+          </button>
+          <p className="text-center text-xs text-muted/70 mt-2">חשבון ציבורי לצפייה — ללא הרשאת עריכה</p>
+        </div>
       </div>
     </div>
   );

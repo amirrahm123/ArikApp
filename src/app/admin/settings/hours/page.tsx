@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { blockDemoWrite, useIsDemo } from '@/lib/demo';
 import { DAYS_HE } from '@/lib/types';
 import Link from 'next/link';
 
@@ -15,6 +16,7 @@ interface WorkingHourRow {
 }
 
 export default function HoursSettingsPage() {
+  const isDemo = useIsDemo();
   const [hours, setHours] = useState<WorkingHourRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,6 +42,7 @@ export default function HoursSettingsPage() {
   };
 
   const saveAll = async () => {
+    if (blockDemoWrite()) return;
     setSaving(true);
     for (const h of hours) {
       await supabase.from('working_hours').update({
@@ -67,13 +70,15 @@ export default function HoursSettingsPage() {
           <Link href="/admin/settings" className="text-sm text-muted hover:text-white">← הגדרות</Link>
           <h2 className="text-xl font-bold">🕐 שעות פעילות</h2>
         </div>
-        <button
-          onClick={saveAll}
-          disabled={saving}
-          className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
-        >
-          {saving ? 'שומר...' : 'שמור הכל'}
-        </button>
+        {!isDemo && (
+          <button
+            onClick={saveAll}
+            disabled={saving}
+            className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+          >
+            {saving ? 'שומר...' : 'שמור הכל'}
+          </button>
+        )}
       </div>
 
       {loading ? (

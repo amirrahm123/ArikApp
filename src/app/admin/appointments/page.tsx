@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Pencil, Trash2, Scissors } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { blockDemoWrite, useIsDemo } from '@/lib/demo';
 import { PAYMENT_LABELS, type Appointment, type AppointmentStatus, type PaymentMethod } from '@/lib/types';
 import { createReceipt } from '@/lib/receipts';
 import EditAppointmentModal from '@/components/EditAppointmentModal';
@@ -30,6 +31,7 @@ const cardBorderColor = (s: string) => {
 };
 
 export default function AppointmentsPage() {
+  const isDemo = useIsDemo();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -60,6 +62,7 @@ export default function AppointmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (blockDemoWrite()) return;
     if (!confirm('למחוק תור זה?')) return;
     await supabase.from('appointments').delete().eq('id', id);
     toast.success('✓ התור נמחק');
@@ -67,6 +70,7 @@ export default function AppointmentsPage() {
   };
 
   const handlePayment = async () => {
+    if (blockDemoWrite()) return;
     if (!paymentModal || !payAmount) return;
     await supabase.from('appointments').update({ payment_method: payMethod, amount_paid: parseFloat(payAmount), is_paid: true, status: 'completed' }).eq('id', paymentModal.id);
     await createReceipt(paymentModal.id, paymentModal.customer_id);
@@ -130,13 +134,15 @@ export default function AppointmentsPage() {
                       {a.date} · {a.time_slot}
                       {a.is_paid && a.payment_method && <span className="ms-2 text-success font-medium">✓ {PAYMENT_LABELS[a.payment_method]} ₪{a.amount_paid}</span>}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => setEditingAppt(a)} className="p-2 rounded-lg hover:bg-surface-2 text-muted hover:text-black transition-colors"><Pencil className="w-4 h-4" /></button>
-                      {!a.is_paid && a.status !== 'cancelled' && (
-                        <button onClick={() => { setPaymentModal(a); setPayAmount(''); }} className="text-accent font-semibold text-sm px-2 py-1 rounded-lg hover:bg-accent-light transition-colors">תשלום</button>
-                      )}
-                      <button onClick={() => handleDelete(a.id)} className="p-2 rounded-lg hover:bg-accent-light text-muted hover:text-accent transition-colors"><Trash2 className="w-4 h-4" /></button>
-                    </div>
+                    {!isDemo && (
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setEditingAppt(a)} className="p-2 rounded-lg hover:bg-surface-2 text-muted hover:text-black transition-colors"><Pencil className="w-4 h-4" /></button>
+                        {!a.is_paid && a.status !== 'cancelled' && (
+                          <button onClick={() => { setPaymentModal(a); setPayAmount(''); }} className="text-accent font-semibold text-sm px-2 py-1 rounded-lg hover:bg-accent-light transition-colors">תשלום</button>
+                        )}
+                        <button onClick={() => handleDelete(a.id)} className="p-2 rounded-lg hover:bg-accent-light text-muted hover:text-accent transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>

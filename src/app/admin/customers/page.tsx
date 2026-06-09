@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Trash2, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { blockDemoWrite, useIsDemo } from '@/lib/demo';
 import type { Customer } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CustomersPage() {
+  const isDemo = useIsDemo();
   const [customers, setCustomers] = useState<(Customer & { visit_count: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -31,6 +33,7 @@ export default function CustomersPage() {
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.preventDefault();
     e.stopPropagation();
+    if (blockDemoWrite()) return;
     if (!confirm(`למחוק את הלקוח "${name}"?`)) return;
     setDeleting(id);
     await supabase.from('customers').delete().eq('id', id);
@@ -77,10 +80,12 @@ export default function CustomersPage() {
                       <div className="text-left">
                         <span className="bg-accent-light text-accent px-2 py-0.5 rounded-full text-xs font-semibold">{c.visit_count} ביקורים</span>
                       </div>
-                      <button onClick={(e) => handleDelete(e, c.id, c.full_name)} disabled={deleting === c.id}
-                        className="p-2 rounded-lg hover:bg-accent-light text-muted hover:text-accent transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {!isDemo && (
+                        <button onClick={(e) => handleDelete(e, c.id, c.full_name)} disabled={deleting === c.id}
+                          className="p-2 rounded-lg hover:bg-accent-light text-muted hover:text-accent transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </Link>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { blockDemoWrite } from '@/lib/demo';
 import { DEFAULT_WORKING_HOURS, SERVICES, STATUS_LABELS, type Appointment, type AppointmentStatus } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -73,6 +74,7 @@ export default function EditAppointmentModal({ appointment, onClose, onSaved, on
   }, [date, bookedSlots, selectedService]);
 
   const handleSave = async () => {
+    if (blockDemoWrite()) return;
     setSaving(true);
     // If cancelling, use the cancel API to send notifications
     if (status === 'cancelled' && appointment.status !== 'cancelled') {
@@ -89,6 +91,7 @@ export default function EditAppointmentModal({ appointment, onClose, onSaved, on
   };
 
   const handleDelete = async () => {
+    if (blockDemoWrite()) return;
     if (!confirm('למחוק תור זה? פעולה זו אינה ניתנת לביטול.')) return;
     await supabase.from('appointments').delete().eq('id', appointment.id);
     onDeleted();

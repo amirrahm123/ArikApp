@@ -76,18 +76,18 @@ export default function BookPage() {
         if (email) await supabase.from('customers').update({ email }).eq('id', customerId);
       } else {
         const { data: newCust, error } = await supabase.from('customers').insert({ full_name: fullName, phone: normalizedPhone, email: email || undefined }).select('id').single();
-        if (error || !newCust) throw new Error('Failed to create customer');
+        if (error || !newCust) throw new Error('customer insert: ' + (error?.message || 'no row returned'));
         customerId = newCust.id;
       }
       setShowPhoneConflict(false); setExistingCustomer(null);
       const { data: appt, error: apptErr } = await supabase.from('appointments').insert({ customer_id: customerId, service_type: selectedService.name, date: selectedDate, time_slot: selectedTime, status: 'pending', payment_method: paymentMethod, amount_paid: selectedService.price, is_paid: false, notes: notes || undefined }).select('id').single();
-      if (apptErr || !appt) throw new Error('Failed to create appointment');
+      if (apptErr || !appt) throw new Error('appointment insert: ' + (apptErr?.message || 'no row returned'));
       setAppointmentId(appt.id);
       fetch('/api/notify-admin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientName: fullName, phone, service: selectedService.name, date: selectedDate, time: selectedTime, price: selectedService.price, paymentMethod }) }).catch(() => {});
       if (email) { fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'booking', data: { customerName: fullName, customerEmail: email, date: selectedDate, timeSlot: selectedTime, serviceType: selectedService.name, price: selectedService.price } }) }).catch(() => {}); }
       setStep(3);
       setTimeout(async () => { const confetti = (await import('canvas-confetti')).default; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#C0392B', '#C9A84C', '#F5F0E8'] }); }, 300);
-    } catch (err) { console.error('Booking error:', err); alert('שגיאה בקביעת התור. נסה שוב.'); } finally { setSubmitting(false); }
+    } catch (err) { const msg = err instanceof Error ? err.message : String(err); console.error('Booking error:', err); alert('שגיאה בקביעת התור. נסה שוב.\n\n(' + msg + ')'); } finally { setSubmitting(false); }
   };
 
   const inputClass = `w-full rounded-[10px] px-4 py-3.5 text-base focus:outline-none focus:ring-2 transition-colors`;
